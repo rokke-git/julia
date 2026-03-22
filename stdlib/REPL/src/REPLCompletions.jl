@@ -889,7 +889,9 @@ function bslash_completions(string::String, pos::Int, hint::Bool=false)
                 s[1:findlast(':', s)] .* getindex.(names, (:).(3, length.(names)))
             )
         else
-            names = Iterators.filter(k -> startswith(k, s), keys(latex_symbols)) |> collect |> sort!
+            filt = startswith(s, "\\?") ? k -> all(contains.(k, split(s, '?')[2:end])) :
+                                          k -> startswith(k, s)
+            names = Iterators.filter(filt, keys(latex_symbols)) |> collect |> sort!
             Iterators.zip(get.(Ref(latex_symbols), names, ""), names)
         end
         completions = Completion[BslashCompletion(name, "$symbol $name") for (symbol, name) in comps]

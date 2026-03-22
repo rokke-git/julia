@@ -13,6 +13,8 @@ New language features
     ([#60285]).
   - Combining emoji sequences can now be input with the syntax `\:man:woman:girl:boy:` to produce `👨‍👩‍👧‍👦`
     ("\u1F468\u200D\u1F469\u200D\u1F467\u200d\u1F466"). The zero width joiner on its own is `\zwj`.
+  - Latex expansions can now be searched like `\?search<tab>` to show all symbols *containing* rather than starting
+    with the search string. Queries are separated by question marks, eg `\?arrow?up<tab>` will show the various up arrows
   - The `@label` macro can now create labeled blocks that can be exited early with `break name [value]`. Use
     `@label name expr` for named blocks or `@label expr` for anonymous blocks. Anonymous `@label` blocks
     participate in the default break scope: a plain `break` or `break _` exits the innermost breakable scope,
