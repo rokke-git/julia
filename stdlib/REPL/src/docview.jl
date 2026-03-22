@@ -540,12 +540,37 @@ function repl_latex(io::IO, s0::String)
                     if length(latex_symbol) == 3 && latex_symbol[2] in ('^','_')
                         # coalesce runs of sub/superscripts
                         if state != latex_symbol[2]
+                            'e'  == state && print(io, "<tab>\\zwj")
                             '\0' != state && print(io, "<tab>")
                             print(io, latex_symbol[1:2])
                             state = latex_symbol[2]
                         end
                         print(io, latex_symbol[3])
+                    elseif latex_symbol[2] == ':'
+                        # coalesce zwj emoji sequences
+                        if state in ('^', '_', ':')
+                            print(io, "<tab>")
+                            print(io, latex_symbol)
+                        elseif state == 'e'
+                            print(io, latex_symbol[3:end])
+                        else # state == '\0'
+                            print(io, latex_symbol)
+                        end
+                        state = ':'
+                    elseif latex_symbol == "\\zwj"
+                        if state in ('^', '_')
+                            print(io, "<tab>\\zwj<tab>")
+                            state = '\0'
+                        elseif state == 'e'
+                            print(io, "<tab>\\zwj<tab>\\zwj<tab>")
+                            state = '\0'
+                        elseif state == ':'
+                            state = 'e'
+                        else # state == '\0'
+                            print(io, "\\zwj<tab>")
+                        end
                     else
+                        'e'  == state && print(io, "<tab>\\zwj")
                         if '\0' != state
                             print(io, "<tab>")
                             state = '\0'
@@ -553,6 +578,7 @@ function repl_latex(io::IO, s0::String)
                         print(io, latex_symbol, "<tab>")
                     end
                 else
+                    'e'  == state && print(io, "<tab>\\zwj")
                     if '\0' != state
                         print(io, "<tab>")
                         state = '\0'
@@ -560,6 +586,7 @@ function repl_latex(io::IO, s0::String)
                     print(io, c)
                 end
             end
+            'e'  == state && print(io, "<tab>\\zwj")
             '\0' != state && print(io, "<tab>")
         end
         println(io, '\n')

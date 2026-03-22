@@ -100,6 +100,7 @@ const latex_symbols = Dict(
 
 # manual additions:
 
+    "\\zwj" => "\u200D",
     "\\sqrt" => "\u221A",
     "\\cbrt" => "\u221B",
     "\\female" => "♀",

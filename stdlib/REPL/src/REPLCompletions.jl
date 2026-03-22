@@ -872,15 +872,27 @@ function bslash_completions(string::String, pos::Int, hint::Bool=false)
             sup = map(c -> superscripts[c], s[3:end])
             return (true, (Completion[BslashCompletion(sup)], slashpos:pos, true))
         end
-        emoji = get(emoji_symbols, s, "")
-        if !isempty(emoji)
+        emoji = get.(Ref(emoji_symbols), "\\:" .* split(s, ':')[2:end-1] .* ':', "")
+        if !isempty(emoji) && all(!isempty, emoji) && length(s)>3 && s[2] == s[end] == ':'
+            emoji = join(emoji, '\u200d') # combine multiple emoji with zwj
             return (true, (Completion[BslashCompletion(emoji)], slashpos:pos, true))
         end
         # return possible matches; these cannot be mixed with regular
         # Julian completions as only latex / emoji symbols contain the leading \
-        symbol_dict = startswith(s, "\\:") ? emoji_symbols : latex_symbols
-        namelist = Iterators.filter(k -> startswith(k, s), keys(symbol_dict))
-        completions = Completion[BslashCompletion(name, "$(symbol_dict[name]) $name") for name in sort!(collect(namelist))]
+        comps = if startswith(s, "\\:")
+            names = Iterators.filter(keys(emoji_symbols)) do keyname
+                last_part = split(s, ':')[end]
+                startswith(keyname, "\\:" * last_part)
+            end |> collect |> sort!
+            Iterators.zip(
+                join(emoji, '\u200d') * '\u200d'^sign(length(emoji)) .* get.(Ref(emoji_symbols), names, ""),
+                s[1:findlast(':', s)] .* getindex.(names, (:).(3, length.(names)))
+            )
+        else
+            names = Iterators.filter(k -> startswith(k, s), keys(latex_symbols)) |> collect |> sort!
+            Iterators.zip(get.(Ref(latex_symbols), names, ""), names)
+        end
+        completions = Completion[BslashCompletion(name, "$symbol $name") for (symbol, name) in comps]
         return (true, (completions, slashpos:pos, true))
     end
     return (false, (Completion[], 1:0, false))
