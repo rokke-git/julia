@@ -415,6 +415,15 @@ let s = "α\\:koala:"
     @test length(c) == 1
 end
 
+# test combining emoji completion
+let s = "\\:man:woman:girl:boy:"
+    c, r = test_bslashcomplete(s)
+    @test c[1].completion == "👨‍👩‍👧‍👦"
+    @test c[1].name == "👨‍👩‍👧‍👦"
+    @test r == 1:sizeof(s)
+    @test length(c) == 1
+end
+
 # test latex symbol completions in strings should not work when there
 # is a backslash in front of `\alpha` because it interferes with path completion on windows
 let s = "cd(\"path_to_an_empty_folder_should_not_complete_latex\\\\\\alpha"
