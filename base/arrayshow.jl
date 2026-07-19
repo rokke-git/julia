@@ -34,13 +34,14 @@
 
 ## printing with `display`
 
-"function to be pointed to by `show_repl(io::IO, mime::MIME\"text/plain\", x::AbstractArray)`"
-function display_array(io::IO, X::AbstractArray)
+function show(io::IO, ::MIME"text/plain", @nospecialize(X::AbstractArray))
+    get(io, :limit, false)::Bool || return array_show(io, MIME"text/plain"(), X)
     sz = displaysize(io)::Tuple{Int,Int}
     sh, sw = sz[1] - 4, sz[2] + 1
     dims = ndims(X)
 
-    print(io, summary(X))
+    print(io, type_abbreviation(summary(X), sw))
+    io = IOContext(io, :typeinfo => eltype(X))
     isempty(X) && return
     if all(x->length(x) == 1, axes(X))
         print(io, ":\n ")
@@ -231,7 +232,7 @@ function _print_ellipsis_row(io::IO, align, v0, v1, v2)
     for vi in v0
         if !isnothing(vi)
             buff = " "^(2+align[vi, v1[], v2[]][3])
-            print(io, buff[1:-~end÷2] * "⋮" * (vi==v0[end] ? "" : buff[-~end÷2+2:end]))
+            print(io, buff[1:~-end÷2] * "⋮" * (vi==v0[end] ? "" : buff[-~end÷2+1:end]))
         else
             print(io, " ⋱ ")
         end
@@ -257,25 +258,86 @@ function _display_capped(io::IO, X, inds, limit=0)
     end
     if isassigned(X, inds...)
         elm = X[inds...]
-        if elm isa String && !get(io, :compact, false)::Bool && width > 16
-            x = sprint((io,elm)->show(io, MIME"text/plain"(), elm; limit), elm, context=io, sizehint=0)
+        if elm isa String && limit > 16
+            x = sprint((io,elm)->show(io, MIME"text/plain"(), elm; limit), elm; context=io, sizehint=0)
         else
-            x = sprint(show, MIME"text/plain"(), elm, context=io, sizehint=0)
-            (occursin('\n', x) || _textwidth(x) >= limit) && (x = sprint(show, elm, context=io, sizehint=0))
-            (occursin('\n', x) || _textwidth(x) >= limit) && (x = '<' * summary(elm) * '>')
-            (occursin('\n', x) || _textwidth(x) >= limit) && (x = split(x, '\n')[1] * '>')
-            (                     _textwidth(x) >= limit) && (x = x[1:limit - 4] * "...>")
+            x = dash(show, MIME"text/plain"(), elm; context=io, sizehint=0, limit=2limit)
+            (occursin('\n', x) || textwidth(x |> ANSIIterator) >= limit) && (x = dash(show, elm, context=io, sizehint=0, limit=2limit))
+            (occursin('\n', x) || textwidth(x |> ANSIIterator) >= limit) && (x = '<' * summary(elm) * '>')
+            (occursin('\n', x) || textwidth(x |> ANSIIterator) >= limit) && (x = split(x, '\n')[1] * '>')
+            (                     textwidth(x |> ANSIIterator) >= limit) && (x = type_abbreviation(x, limit))
+            (                     textwidth(x |> ANSIIterator) >= limit) && (x = x[1:limit-2] * "…>")
         end
     else
         x = undef_ref_str
     end
-    x = try replace_in_print_matrix(parent(X), inds[1], inds[2], x) catch e x end
+    x = try replace_in_print_matrix(parent(parent(X)), inds[1], inds[2], x) catch e x end
     print(io, x)
+end
+
+function type_abbreviation(s::AbstractString, limit)
+    nest = length(s) ÷ 2
+    while textwidth(s |> ANSIIterator) > limit
+        io = IOBuffer(s)
+        d, s = colapse_braces(io, nest)
+        nest = min(d, nest) - 1
+        nest == 0 && break
+    end
+    s
+end
+
+function colapse_braces(io::IO,nest)
+    let s="", depth
+        while !eof(io)
+            c = read(io, Char)
+            if c == '{'
+                d, inner = colapse_braces(io, nest-1)
+                depth = try max(d, depth) catch e d end
+                s *= '{' * inner * '}'
+            elseif c == '}'
+                depth = try depth catch e 0 end
+                break
+            else
+                s *= c
+            end
+        end
+        try depth+1 catch e 0 end, nest <= 0 ? '…' : s
+    end
+end
+
+struct LimitedIOBuffer <: IO
+    buffer::IOBuffer
+    limit::Int
+end
+
+function Base.write(io::LimitedIOBuffer, b::UInt8)
+    try
+        position(io.buffer) >= io.limit && throw(ErrorException("Buffer limit exceeded"))
+    finally
+        write(io.buffer, b)
+    end
+end
+
+"a limited sprint which feeds an exception to its printing function if it gets too long"
+function dash(f::Function, args...; limit::Int=0, context=nothing, sizehint=0)
+    s = LimitedIOBuffer(IOBuffer(;sizehint), limit)
+    try
+        if context isa Tuple
+            f(IOContext(s, context...), args...)
+        elseif context !== nothing
+            f(IOContext(s, context), args...)
+        else
+            f(s, args...)
+        end
+    catch e
+        contains(string(e), "Buffer limit exceeded") || rethrow(e)
+    end
+    takestring!(s.buffer)
 end
 
 function _display_alignment(io::IO, X, row, col, limit=0)
     if limit == 0  # set default limit based on screen size and :compact
-        width = displaysize(io)[2] - 2
+        width = displaysize(io)[2]
         limit = get(io, :compact, false)::Bool ? min(40, width÷2) : width
     end
     inds = Iterators.flatten(zip(row, col))
@@ -287,18 +349,9 @@ function _display_alignment(io::IO, X, row, col, limit=0)
     if sum(align) < limit
         (align..., sum(align))
     else
-        width = _textwidth(sprint(_display_capped, X, inds, limit, context=io))
+        width = textwidth(sprint(_display_capped, X, inds, limit, context=io) |> ANSIIterator)
         0, width, width
     end
-end
-
-"ignore ansi control sequences when finding textwidth"
-function _textwidth(str)
-    str = split(str, r"\e\[[0-?]*[ -/]*[@-~]") |> prod
-    str = split(str, r"\e[]_P^][\b-\r -~]*\e\\\\"a) |> prod
-    str = split("\eX\e\\" * str, r"\eX")[2:end] .|> (x->split(x, r"\e\\\\")[2:end]) .|> prod |> prod
-    str = split(str, r"\e[BCEFGHIJKLMNOQRSTUVWZ]") |> prod
-    textwidth(str)
 end
 
 # printing with 3-arg show
@@ -421,7 +474,7 @@ print_array(io::IO, X::AbstractArray) = show_nd(io, X, print_matrix, true)
 
 # typeinfo aware
 # implements: show(io::IO, ::MIME"text/plain", X::AbstractArray)
-function show(io::IO, ::MIME"text/plain", X::AbstractArray)
+function array_show(io::IO, ::MIME"text/plain", X::AbstractArray)
     if isempty(X) && (get(io, :compact, false)::Bool || X isa AbstractVector)
         return show(io, X)
     end
