@@ -708,7 +708,17 @@ function setindex!(x::Threads.Atomic, v)
 end
 
 # fld1 == cld for integers, and randomly rounds up or down for floats.
-@deprecate fldmod1(a::Real, b::Real) cldmod1(a, b)
-@deprecate fld1(a::Real, b::Real) cld(a, b)
+function fldmod1(a::Real, b::Real)
+    depwarn("`fldmod1(a, b)` is deprecated, use `cldmod1(a, b)` instead. " *
+            "`fld1` and `cld` are the same function on the integers, " *
+            "and the old `fld1` on reals rounded inconsistently.", :fldmod1)
+    cldmod1(a,b)
+end
+function fld1(a::Real, b::Real)
+    depwarn("`fld1(a, b)` is deprecated, use `cld(a, b)` instead. " *
+            "`fld1` and `cld` are the same function on the integers, " *
+            "and the old `fld1` on reals rounded inconsistently.", :fld1)
+    cld(a, b)
+end
 
 # END 1.14 deprecations
