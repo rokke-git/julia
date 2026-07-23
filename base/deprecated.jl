@@ -708,7 +708,7 @@ function setindex!(x::Threads.Atomic, v)
 end
 
 # fld1 == cld for integers, and randomly rounds up or down for floats.
-@deprecate fldmod1 cldmod1
-@deprecate fld1 cld
+@deprecate fldmod1(a::Real, b::Real) cldmod1(a, b)
+@deprecate fld1(a::Real, b::Real) cld(a, b)
 
 # END 1.14 deprecations
