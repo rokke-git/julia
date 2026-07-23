@@ -871,7 +871,7 @@ const ÷ = div
     mod1(x, y)
 
 Equivalent to `rem(x, y, RoundUp) + x*sign(y)`. Returns a value in the range
-``(0, y]`` for positive `y` and ``[-y,0)`` for negative `y`.
+``(0, y]`` for positive `y` and ``[-|y|,0)`` for negative `y`.
 
 With integer arguments and positive `y`, this is equal to `mod(x, 1:y)`, and hence natural for
 1-based indexing. By comparison, `mod(x, y) == mod(x, 0:y-1)` is natural for 0-based indexing.

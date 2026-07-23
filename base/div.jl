@@ -92,16 +92,16 @@ without any intermediate rounding.
 - if `r == RoundToZero` (default), then the result is exact, and in the interval
   ``[0, |y|)`` if `x` is positive, or ``(-|y|, 0]`` otherwise. See also [`RoundToZero`](@ref).
 
-- if `r == RoundDown`, then the result is in the interval ``[0, y)`` if `y` is positive, or
-  ``(y, 0]`` otherwise. The result may not be exact if `x` and `y` have different signs, and
+- if `r == RoundDown`, then the result is in the interval ``[0, |y|)`` if `y` is positive, or
+  ``(-|y|, 0]`` otherwise. The result may not be exact if `x` and `y` have different signs, and
   `abs(x) < abs(y)`. See also [`RoundDown`](@ref).
 
-- if `r == RoundUp`, then the result is in the interval ``(-y, 0]`` if `y` is positive, or
-  ``[0, -y)`` otherwise. The result may not be exact if `x` and `y` have the same sign, and
+- if `r == RoundUp`, then the result is in the interval ``(-|y|, 0]`` if `y` is positive, or
+  ``[0, |y|)`` otherwise. The result may not be exact if `x` and `y` have the same sign, and
   `abs(x) < abs(y)`. See also [`RoundUp`](@ref).
 
-- if `r == RoundFromZero`, then the result is in the interval ``(-y, 0]`` if `y` is positive, or
-  ``[0, -y)`` otherwise. The result may not be exact if `x` and `y` have the same sign, and
+- if `r == RoundFromZero`, then the result is in the interval ``(-|y|, 0]`` if `x` is positive, or
+  ``[0, |y|)`` otherwise. The result may not be exact if `x` and `y` have the same sign, and
   `abs(x) < abs(y)`. See also [`RoundFromZero`](@ref).
 
 !!! compat "Julia 1.9"
